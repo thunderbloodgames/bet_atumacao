@@ -59,7 +59,7 @@ def fetch_daily_games():
     """
     print(f"DEBUG: Iniciando fetch_daily_games com KV_URL={KV_URL[:5]}...")  # Depuração
     try:
-        kv = KV(url=KV_URL, rest_api_url=KV_REST_API_URL, rest_api_token=KV_REST_API_TOKEN, rest_api_read_only_token=KV_REST_API_READ_ONLY_TOKEN)
+        kv = KV()  # Removido argumentos explícitos
         print("DEBUG: KV inicializado com sucesso")
     except Exception as e:
         print(f"DEBUG: Erro ao inicializar KV: {str(e)}")
@@ -123,7 +123,7 @@ def check_odds_variation():
     Busca as odds atuais, compara com os dados do Vercel KV e envia alertas.
     """
     try:
-        kv = KV(url=KV_URL, rest_api_url=KV_REST_API_URL, rest_api_token=KV_REST_API_TOKEN, rest_api_read_only_token=KV_REST_API_READ_ONLY_TOKEN)
+        kv = KV()  # Removido argumentos explícitos
         print("DEBUG: KV inicializado com sucesso para check_odds_variation")
     except Exception as e:
         print(f"DEBUG: Erro ao inicializar KV: {str(e)}")
@@ -188,7 +188,7 @@ def fetch_game_results():
     Busca os resultados dos jogos do dia usando os dados salvos.
     """
     try:
-        kv = KV(url=KV_URL, rest_api_url=KV_REST_API_URL, rest_api_token=KV_REST_API_TOKEN, rest_api_read_only_token=KV_REST_API_READ_ONLY_TOKEN)
+        kv = KV()  # Removido argumentos explícitos
         print("DEBUG: KV inicializado com sucesso para fetch_game_results")
     except Exception as e:
         print(f"DEBUG: Erro ao inicializar KV: {str(e)}")
