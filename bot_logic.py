@@ -3,24 +3,25 @@ import requests
 import json
 from datetime import datetime
 from telegram import Bot
-from vercel_kv import kv  # Importa a biblioteca do Vercel KV
+from vercel_kv import KV  # <-- ALTERAÇÃO 1: 'KV' maiúsculo
 
 # --- CONFIGURAÇÃO INICIAL (Use Variáveis de Ambiente na Vercel) ---
 ODDS_API_KEY = os.environ.get('ODDS_API_KEY')
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID')
-AFFILIATE_LINK = os.environ.get('AFFILIATE_LINK') # Link de afiliado
+AFFILIATE_LINK = os.environ.get('AFFILIATE_LINK') 
 
 # --- PARÂMETROS DA API E DO BOT ---
-PARTNER_BOOKMAKER_KEY = 'betano'  # Chave da casa parceira na API (ex: 'betano', 'bet365_br', etc.)
-PARTNER_BOOKMAKER_NAME = 'Betano' # Nome da casa para exibir nas mensagens
+PARTNER_BOOKMAKER_KEY = 'betano'
+PARTNER_BOOKMAKER_NAME = 'Betano'
 REGIONS = 'br'
 MARKETS = 'h2h'
 ODDS_FORMAT = 'decimal'
 SPORT = 'soccer_brazil_campeonato'
 
-# --- INICIALIZAÇÃO DO BOT ---
+# --- INICIALIZAÇÃO DO BOT E DO BANCO DE DADOS ---
 bot = Bot(token=TELEGRAM_TOKEN)
+kv = KV()  # <-- ALTERAÇÃO 2: Criamos a instância do banco de dados
 
 # --- FUNÇÕES PRINCIPAIS ---
 
@@ -40,14 +41,12 @@ def fetch_daily_games():
             bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
             return
         
-        # Limpa os dados antigos e salva os novos jogos no Vercel KV
-        kv.delete('daily_games_ids') # Apaga a lista de jogos de ontem
+        kv.delete('daily_games_ids')
         game_ids = [game['id'] for game in games]
-        kv.set('daily_games_ids', json.dumps(game_ids)) # Salva a lista de IDs de hoje
+        kv.set('daily_games_ids', json.dumps(game_ids))
         for game in games:
-            kv.set(game['id'], json.dumps(game)) # Salva os detalhes de cada jogo
+            kv.set(game['id'], json.dumps(game))
 
-        # Formata a mensagem para o Telegram
         message_lines = [f"📊 **MERCADO ABERTO | Jogos do Dia ({PARTNER_BOOKMAKER_NAME})**\n"]
         for game in games:
             home_team = game['home_team']
@@ -59,7 +58,7 @@ def fetch_daily_games():
                 home_odds = next((o['price'] for o in odds if o['name'] == home_team), 'N/A')
                 away_odds = next((o['price'] for o in odds if o['name'] == away_team), 'N/A')
                 game_time_utc = datetime.fromisoformat(game['commence_time'].replace('Z', '+00:00'))
-                game_time_br = game_time_utc.astimezone(datetime.now().astimezone().tzinfo) # Converte para fuso local
+                game_time_br = game_time_utc.astimezone(datetime.now().astimezone().tzinfo)
                 
                 message_lines.append(f"⚽ {game_time_br.strftime('%H:%M')} | {home_team} ({home_odds}) vs {away_team} ({away_odds})")
 
@@ -84,7 +83,6 @@ def check_odds_variation():
         return
     
     game_ids = json.loads(game_ids_json)
-
     url = f"https://api.the-odds-api.com/v4/sports/{SPORT}/odds/?apiKey={ODDS_API_KEY}&regions={REGIONS}&markets={MARKETS}&oddsFormat={ODDS_FORMAT}"
     
     try:
@@ -113,7 +111,6 @@ def check_odds_variation():
                 i_home_price = next((o['price'] for o in i_odds if o['name'] == i_game['home_team']), 0)
                 c_home_price = next((o['price'] for o in c_odds if o['name'] == c_game['home_team']), 0)
 
-                # CONDIÇÃO DO ALERTA: Se a odd subiu mais de 10% (ajuste o valor conforme preferir)
                 if c_home_price > i_home_price * 1.10:
                     message = (
                         f"⚡ **ALERTA DE VARIAÇÃO DE ODD!**\n\n"
