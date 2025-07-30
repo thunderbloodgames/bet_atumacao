@@ -19,8 +19,17 @@ TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID')
 AFFILIATE_LINK = os.environ.get('AFFILIATE_LINK')
 
+# Mapeamento das variáveis de ambiente para o vercel-kv
+KV_URL = os.environ.get('KV_URL') or os.environ.get('url')
+KV_REST_API_URL = os.environ.get('KV_REST_API_URL') or os.environ.get('rest_api_url')
+KV_REST_API_TOKEN = os.environ.get('KV_REST_API_TOKEN') or os.environ.get('rest_api_token')
+KV_REST_API_READ_ONLY_TOKEN = os.environ.get('KV_REST_API_READ_ONLY_TOKEN') or os.environ.get('rest_api_read_only_token')
+
 if not all([ODDS_API_KEY, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]) and TELEGRAM_AVAILABLE:
     raise ValueError("Faltam variáveis de ambiente obrigatórias")
+
+if not all([KV_URL, KV_REST_API_URL, KV_REST_API_TOKEN]):
+    raise ValueError("Faltam variáveis de ambiente para inicialização do Vercel KV")
 
 # --- PARÂMETROS ---
 PARTNER_BOOKMAKER_KEY = 'betano'
@@ -44,8 +53,8 @@ def fetch_daily_games():
     """
     Busca os jogos do dia, formata a mensagem e salva os dados no Vercel KV.
     """
-    print(f"DEBUG: KV_URL={os.environ.get('KV_URL')}, ODDS_API_KEY={ODDS_API_KEY[:5]}...")  # Depuração
-    kv = KV()
+    print(f"DEBUG: KV_URL={KV_URL[:5]}..., ODDS_API_KEY={ODDS_API_KEY[:5]}...")  # Depuração
+    kv = KV(url=KV_URL, rest_api_url=KV_REST_API_URL, rest_api_token=KV_REST_API_TOKEN, rest_api_read_only_token=KV_REST_API_READ_ONLY_TOKEN)
     url = f"https://api.the-odds-api.com/v4/sports/{SPORT}/odds/?apiKey={ODDS_API_KEY}&regions={REGIONS}&markets={MARKETS}&oddsFormat={ODDS_FORMAT}"
     
     try:
@@ -102,7 +111,7 @@ def check_odds_variation():
     """
     Busca as odds atuais, compara com os dados do Vercel KV e envia alertas.
     """
-    kv = KV()
+    kv = KV(url=KV_URL, rest_api_url=KV_REST_API_URL, rest_api_token=KV_REST_API_TOKEN, rest_api_read_only_token=KV_REST_API_READ_ONLY_TOKEN)
     game_ids_json = kv.get('daily_games_ids')
     if not game_ids_json:
         print("Nenhum ID de jogo encontrado no Vercel KV.")
@@ -160,7 +169,7 @@ def fetch_game_results():
     """
     Busca os resultados dos jogos do dia usando os dados salvos.
     """
-    kv = KV()
+    kv = KV(url=KV_URL, rest_api_url=KV_REST_API_URL, rest_api_token=KV_REST_API_TOKEN, rest_api_read_only_token=KV_REST_API_READ_ONLY_TOKEN)
     game_ids_json = kv.get('daily_games_ids')
     if not game_ids_json:
         if TELEGRAM_AVAILABLE:
