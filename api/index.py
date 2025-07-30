@@ -1,32 +1,6 @@
-# Importa o Flask e as funções do nosso arquivo de lógica
 from flask import Flask, jsonify
-import sys
-import os
-# No topo do arquivo, garanta que 'os' e 'jsonify' estão importados
-import os
-from flask import jsonify
-
-# ... (seu código Flask e outras rotas continuam aqui) ...
-
-# VAMOS ADICIONAR ESTA NOVA ROTA NO FINAL DO ARQUIVO
-@app.route('/api/debug', methods=['GET'])
-def debug_route():
-    # Pega todas as variáveis de ambiente que o servidor consegue ver
-    env_vars = dict(os.environ)
-    
-    # Prepara uma resposta segura (sem expor os valores secretos)
-    debug_info = {
-        "mensagem": "Verificação de Variáveis de Ambiente",
-        "KV_URL_ENCONTRADA": "Sim" if env_vars.get("KV_URL") else "NÃO",
-        "KV_REST_API_TOKEN_ENCONTRADO": "Sim" if env_vars.get("KV_REST_API_TOKEN") else "NÃO",
-        "ODDS_API_KEY_ENCONTRADA": "Sim" if env_vars.get("ODDS_API_KEY") else "NÃO",
-        "TELEGRAM_TOKEN_ENCONTRADO": "Sim" if env_vars.get("TELEGRAM_TOKEN") else "NÃO",
-        "TOTAL_DE_VARIAVEIS": len(env_vars)
-    }
-    
-    return jsonify(debug_info), 200
-# Adiciona o diretório raiz ao 'caminho' do Python para encontrar o bot_logic
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# A importação agora é direta, pois os arquivos estão no mesmo diretório.
+# As linhas de 'sys.path.append' foram removidas.
 from bot_logic import fetch_daily_games, check_odds_variation, fetch_game_results
 
 # Cria a aplicação Flask
@@ -63,3 +37,17 @@ def get_results_route():
 @app.route('/api', methods=['GET'])
 def index():
     return jsonify({"message": "Bot CentralBetBr API is running."}), 200
+
+# Rota de Debug (opcional, mas útil)
+@app.route('/api/debug', methods=['GET'])
+def debug_route():
+    import os
+    env_vars = dict(os.environ)
+    debug_info = {
+        "mensagem": "Verificação de Variáveis de Ambiente",
+        "KV_URL_ENCONTRADA": "Sim" if env_vars.get("KV_URL") else "NÃO",
+        "KV_TOKEN_ENCONTRADO": "Sim" if env_vars.get("KV_REST_API_TOKEN") else "NÃO",
+        "ODDS_API_KEY_ENCONTRADA": "Sim" if env_vars.get("ODDS_API_KEY") else "NÃO",
+        "TELEGRAM_TOKEN_ENCONTRADO": "Sim" if env_vars.get("TELEGRAM_TOKEN") else "NÃO",
+    }
+    return jsonify(debug_info), 200
