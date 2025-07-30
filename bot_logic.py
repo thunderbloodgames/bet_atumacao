@@ -21,7 +21,7 @@ SPORT = 'soccer_brazil_campeonato'
 
 # --- INICIALIZAÇÃO DO BOT ---
 bot = Bot(token=TELEGRAM_TOKEN)
-# REMOVEMOS a inicialização do KV daqui
+# A inicialização do KV foi removida daqui
 
 # --- FUNÇÕES PRINCIPAIS ---
 
