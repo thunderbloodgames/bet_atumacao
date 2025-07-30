@@ -1,14 +1,11 @@
-# --- O resto do seu código começa aqui ---
+from dotenv import load_dotenv
+load_dotenv()
+
 from flask import Flask, jsonify
-# ...from flask import Flask, jsonify
-# A importação agora é direta, pois os arquivos estão no mesmo diretório.
-# As linhas de 'sys.path.append' foram removidas.
 from bot_logic import fetch_daily_games, check_odds_variation, fetch_game_results
 
-# Cria a aplicação Flask
 app = Flask(__name__)
 
-# Rota para buscar os jogos da manhã
 @app.route('/api/get_games', methods=['GET'])
 def get_games_route():
     try:
@@ -17,7 +14,6 @@ def get_games_route():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# Rota para verificar as odds da tarde
 @app.route('/api/check_odds', methods=['GET'])
 def check_odds_route():
     try:
@@ -26,7 +22,6 @@ def check_odds_route():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# Rota para buscar os resultados da noite
 @app.route('/api/get_results', methods=['GET'])
 def get_results_route():
     try:
@@ -35,12 +30,10 @@ def get_results_route():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# Rota principal (opcional, bom para testar se a API está no ar)
 @app.route('/api', methods=['GET'])
 def index():
     return jsonify({"message": "Bot CentralBetBr API is running."}), 200
 
-# Rota de Debug (opcional, mas útil)
 @app.route('/api/debug', methods=['GET'])
 def debug_route():
     import os
