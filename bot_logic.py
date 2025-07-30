@@ -3,15 +3,15 @@ import requests
 import json
 from datetime import datetime
 from telegram import Bot
-from vercel_kv import KV  # <-- ALTERAÇÃO 1: 'KV' maiúsculo
+from vercel_kv import KV
 
-# --- CONFIGURAÇÃO INICIAL (Use Variáveis de Ambiente na Vercel) ---
+# --- CONFIGURAÇÃO INICIAL ---
 ODDS_API_KEY = os.environ.get('ODDS_API_KEY')
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID')
 AFFILIATE_LINK = os.environ.get('AFFILIATE_LINK') 
 
-# --- PARÂMETROS DA API E DO BOT ---
+# --- PARÂMETROS ---
 PARTNER_BOOKMAKER_KEY = 'betano'
 PARTNER_BOOKMAKER_NAME = 'Betano'
 REGIONS = 'br'
@@ -19,27 +19,9 @@ MARKETS = 'h2h'
 ODDS_FORMAT = 'decimal'
 SPORT = 'soccer_brazil_campeonato'
 
-# --- INICIALIZAÇÃO DO BOT E DO BANCO DE DADOS ---
+# --- INICIALIZAÇÃO DO BOT ---
+# REMOVEMOS a inicialização do KV daqui
 bot = Bot(token=TELEGRAM_TOKEN)
-# --- INÍCIO DA CORREÇÃO EXPLÍCITA ---
-# Lemos as variáveis de ambiente manualmente
-kv_url = os.environ.get("KV_URL")
-kv_rest_api_url = os.environ.get("KV_REST_API_URL")
-kv_rest_api_token = os.environ.get("KV_REST_API_TOKEN")
-kv_rest_api_read_only_token = os.environ.get("KV_REST_API_READ_ONLY_TOKEN")
-
-# Verificamos se as variáveis foram encontradas antes de tentar usá-las
-if not all([kv_url, kv_rest_api_url, kv_rest_api_token]):
-    raise ValueError("Variáveis de ambiente do Vercel KV não foram encontradas. Verifique as configurações do projeto na Vercel.")
-
-# Entregamos as variáveis diretamente para o construtor do KV
-kv = KV(
-    url=kv_url,
-    rest_api_url=kv_rest_api_url,
-    rest_api_token=kv_rest_api_token,
-    rest_api_read_only_token=kv_rest_api_read_only_token
-)
-# --- FIM DA CORREÇÃO EXPLÍCITA ---
 
 # --- FUNÇÕES PRINCIPAIS ---
 
@@ -47,6 +29,7 @@ def fetch_daily_games():
     """
     Requisição 1: Busca os jogos do dia, formata a mensagem e salva os dados no Vercel KV.
     """
+    kv = KV() # <-- A inicialização do KV agora é feita AQUI DENTRO
     url = f"https://api.the-odds-api.com/v4/sports/{SPORT}/odds/?apiKey={ODDS_API_KEY}&regions={REGIONS}&markets={MARKETS}&oddsFormat={ODDS_FORMAT}"
     
     try:
@@ -95,6 +78,7 @@ def check_odds_variation():
     """
     Requisição 2: Busca as odds atuais, compara com os dados do Vercel KV e envia alertas.
     """
+    kv = KV() # <-- A inicialização do KV agora é feita AQUI DENTRO
     game_ids_json = kv.get('daily_games_ids')
     if not game_ids_json:
         print("Nenhum ID de jogo encontrado no Vercel KV.")
