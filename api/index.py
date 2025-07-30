@@ -1,4 +1,10 @@
+
+from dotenv import load_dotenv
+load_dotenv()
+
+# --- O resto do seu código começa aqui ---
 from flask import Flask, jsonify
+# ...from flask import Flask, jsonify
 # A importação agora é direta, pois os arquivos estão no mesmo diretório.
 # As linhas de 'sys.path.append' foram removidas.
 from bot_logic import fetch_daily_games, check_odds_variation, fetch_game_results
