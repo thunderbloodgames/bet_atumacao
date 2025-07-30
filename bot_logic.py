@@ -3,13 +3,17 @@ import requests
 import json
 from datetime import datetime
 from telegram import Bot
+from telegram.error import TelegramError
 from vercel_kv import KV
 
 # --- CONFIGURAÇÃO INICIAL ---
 ODDS_API_KEY = os.environ.get('ODDS_API_KEY')
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID')
-AFFILIATE_LINK = os.environ.get('AFFILIATE_LINK') 
+AFFILIATE_LINK = os.environ.get('AFFILIATE_LINK')
+
+if not all([ODDS_API_KEY, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]):
+    raise ValueError("Missing required environment variables")
 
 # --- PARÂMETROS ---
 PARTNER_BOOKMAKER_KEY = 'betano'
@@ -19,27 +23,23 @@ MARKETS = 'h2h'
 ODDS_FORMAT = 'decimal'
 SPORT = 'soccer_brazil_campeonato'
 
-# --- INICIALIZAÇÃO DO BOT ---
-bot = Bot(token=TELEGRAM_TOKEN)
-# A inicialização do KV foi removida daqui
-
 # --- FUNÇÕES PRINCIPAIS ---
 
 def fetch_daily_games():
     """
-    Requisição 1: Busca os jogos do dia, formata a mensagem e salva os dados no Vercel KV.
+    Busca os jogos do dia, formata a mensagem e salva os dados no Vercel KV.
     """
-    kv = KV() # A inicialização do KV agora é feita AQUI DENTRO
+    kv = KV()
     url = f"https://api.the-odds-api.com/v4/sports/{SPORT}/odds/?apiKey={ODDS_API_KEY}&regions={REGIONS}&markets={MARKETS}&oddsFormat={ODDS_FORMAT}"
     
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=10)
         response.raise_for_status()
         games = response.json()
 
         if not games:
-            message = "📊 Nenhum jogo do Brasileirão encontrado para hoje na API."
-            bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
+            bot = Bot(token=TELEGRAM_TOKEN)
+            bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="📊 Nenhum jogo do Brasileirão encontrado para hoje na API.")
             return
         
         kv.delete('daily_games_ids')
@@ -48,6 +48,7 @@ def fetch_daily_games():
         for game in games:
             kv.set(game['id'], json.dumps(game))
 
+        bot = Bot(token=TELEGRAM_TOKEN)
         message_lines = [f"📊 **MERCADO ABERTO | Jogos do Dia ({PARTNER_BOOKMAKER_NAME})**\n"]
         for game in games:
             home_team = game['home_team']
@@ -70,15 +71,16 @@ def fetch_daily_games():
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=final_message, parse_mode='Markdown', disable_web_page_preview=True)
 
     except requests.exceptions.RequestException as e:
-        print(f"Erro ao buscar jogos: {e}")
-        bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f"🚨 Erro no Robô: Não foi possível buscar os jogos do dia.")
-
+        bot = Bot(token=TELEGRAM_TOKEN)
+        bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f"🚨 Erro no Robô: Não foi possível buscar os jogos do dia. Detalhes: {str(e)}")
+    except TelegramError as e:
+        print(f"Erro ao enviar mensagem Telegram: {e}")
 
 def check_odds_variation():
     """
-    Requisição 2: Busca as odds atuais, compara com os dados do Vercel KV e envia alertas.
+    Busca as odds atuais, compara com os dados do Vercel KV e envia alertas.
     """
-    kv = KV() # A inicialização do KV agora é feita AQUI DENTRO
+    kv = KV()
     game_ids_json = kv.get('daily_games_ids')
     if not game_ids_json:
         print("Nenhum ID de jogo encontrado no Vercel KV.")
@@ -88,10 +90,11 @@ def check_odds_variation():
     url = f"https://api.the-odds-api.com/v4/sports/{SPORT}/odds/?apiKey={ODDS_API_KEY}&regions={REGIONS}&markets={MARKETS}&oddsFormat={ODDS_FORMAT}"
     
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=10)
         response.raise_for_status()
         current_games = response.json()
 
+        bot = Bot(token=TELEGRAM_TOKEN)
         for game_id in game_ids:
             initial_game_json = kv.get(game_id)
             if not initial_game_json:
@@ -113,7 +116,7 @@ def check_odds_variation():
                 i_home_price = next((o['price'] for o in i_odds if o['name'] == i_game['home_team']), 0)
                 c_home_price = next((o['price'] for o in c_odds if o['name'] == c_game['home_team']), 0)
 
-                if c_home_price > i_home_price * 1.10:
+                if c_home_price > i_home_price * 1.10 and c_home_price > 0:
                     message = (
                         f"⚡ **ALERTA DE VARIAÇÃO DE ODD!**\n\n"
                         f"Nosso monitor detectou um movimento importante no mercado para o jogo:\n"
@@ -124,12 +127,53 @@ def check_odds_variation():
                     bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message, parse_mode='Markdown', disable_web_page_preview=False)
 
     except requests.exceptions.RequestException as e:
-        print(f"Erro ao verificar variação de odds: {e}")
-
+        bot = Bot(token=TELEGRAM_TOKEN)
+        bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f"🚨 Erro ao verificar variação de odds. Detalhes: {str(e)}")
+    except TelegramError as e:
+        print(f"Erro ao enviar mensagem Telegram: {e}")
 
 def fetch_game_results():
     """
-    Requisição 3: Busca os resultados dos jogos do dia.
+    Busca os resultados dos jogos do dia usando os dados salvos.
     """
-    message = "📋 **RESULTADOS DO DIA**\n\n(Função de resultados em desenvolvimento. Verifique o placar nos seus apps de esporte! ✅)"
-    bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message, parse_mode='Markdown')
+    kv = KV()
+    game_ids_json = kv.get('daily_games_ids')
+    if not game_ids_json:
+        bot = Bot(token=TELEGRAM_TOKEN)
+        bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="📋 Nenhum jogo disponível para resultados.")
+        return
+    
+    game_ids = json.loads(game_ids_json)
+    results = []
+
+    try:
+        url = f"https://api.the-odds-api.com/v4/sports/{SPORT}/scores/?apiKey={ODDS_API_KEY}&regions={REGIONS}"
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        scores = response.json()
+
+        bot = Bot(token=TELEGRAM_TOKEN)
+        for game_id in game_ids:
+            initial_game_json = kv.get(game_id)
+            if not initial_game_json:
+                continue
+            
+            i_game = json.loads(initial_game_json)
+            score = next((s for s in scores if s['id'] == i_game['id']), None)
+            
+            if score and 'scores' in score:
+                home_score = score['scores'][0]['score'] if score['scores'] else 'N/A'
+                away_score = score['scores'][1]['score'] if len(score['scores']) > 1 else 'N/A'
+                results.append(f"⚽ {i_game['home_team']} {home_score} x {away_score} {i_game['away_team']}")
+        
+        if results:
+            final_message = "📋 **RESULTADOS DO DIA**\n\n" + "\n".join(results)
+            bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=final_message, parse_mode='Markdown')
+        else:
+            bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="📋 Nenhum resultado disponível para os jogos do dia.")
+
+    except requests.exceptions.RequestException as e:
+        bot = Bot(token=TELEGRAM_TOKEN)
+        bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f"🚨 Erro ao buscar resultados. Detalhes: {str(e)}")
+    except TelegramError as e:
+        print(f"Erro ao enviar mensagem Telegram: {e}")
