@@ -19,20 +19,18 @@ TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID')
 AFFILIATE_LINK = os.environ.get('AFFILIATE_LINK')
 
-# Mapeamento das variáveis de ambiente para o vercel-kv
-KV_URL = os.environ.get('KV_URL') or os.environ.get('url') or os.environ.get('REDIS_URL')
-KV_REST_API_URL = os.environ.get('KV_REST_API_URL') or os.environ.get('rest_api_url')
-KV_REST_API_TOKEN = os.environ.get('KV_REST_API_TOKEN') or os.environ.get('rest_api_token')
-KV_REST_API_READ_ONLY_TOKEN = os.environ.get('KV_REST_API_READ_ONLY_TOKEN') or os.environ.get('rest_api_read_only_token')
-
-print(f"DEBUG: KV_URL={KV_URL[:5] if KV_URL else 'None'}, KV_REST_API_TOKEN={KV_REST_API_TOKEN[:5] if KV_REST_API_TOKEN else 'None'}")  # Depuração
+# Verificação das variáveis de ambiente
+print(f"DEBUG: ODDS_API_KEY={ODDS_API_KEY[:5] if ODDS_API_KEY else 'None'}")
+print(f"DEBUG: TELEGRAM_TOKEN={TELEGRAM_TOKEN[:5] if TELEGRAM_TOKEN else 'None'}")
+print(f"DEBUG: TELEGRAM_CHAT_ID={TELEGRAM_CHAT_ID if TELEGRAM_CHAT_ID else 'None'}")
+print(f"DEBUG: AFFILIATE_LINK={AFFILIATE_LINK[:5] if AFFILIATE_LINK else 'None'}")
+print(f"DEBUG: KV_URL={os.environ.get('KV_URL')[:5] if os.environ.get('KV_URL') else 'None'}")
+print(f"DEBUG: KV_REST_API_TOKEN={os.environ.get('KV_REST_API_TOKEN')[:5] if os.environ.get('KV_REST_API_TOKEN') else 'None'}")
 
 if not ODDS_API_KEY:
     raise ValueError("Falta a variável de ambiente ODDS_API_KEY")
 if TELEGRAM_AVAILABLE and not all([TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]):
     raise ValueError("Faltam variáveis de ambiente para o Telegram: TELEGRAM_TOKEN ou TELEGRAM_CHAT_ID")
-if not all([KV_URL, KV_REST_API_URL, KV_REST_API_TOKEN]):
-    raise ValueError("Faltam variáveis de ambiente para inicialização do Vercel KV")
 
 # --- PARÂMETROS ---
 PARTNER_BOOKMAKER_KEY = 'betano'
@@ -57,25 +55,13 @@ def fetch_daily_games():
     """
     Busca os jogos do dia, formata a mensagem e salva os dados no Vercel KV.
     """
-    print(f"DEBUG: Iniciando fetch_daily_games com KV_URL={KV_URL[:5]}...")  # Depuração
+    print("DEBUG: Iniciando fetch_daily_games")
     try:
-        # Tentativa de inicialização sem argumentos
-        kv = KV()
-        print("DEBUG: KV inicializado com sucesso (sem argumentos)")
+        kv = KV()  # Inicialização sem argumentos, dependendo das variáveis de ambiente
+        print("DEBUG: KV inicializado com sucesso")
     except Exception as e:
-        print(f"DEBUG: Falha ao inicializar KV sem argumentos: {str(e)}")
-        try:
-            # Tentativa de inicialização com argumentos explícitos como fallback
-            kv = KV(
-                url=KV_URL,
-                rest_api_url=KV_REST_API_URL,
-                rest_api_token=KV_REST_API_TOKEN,
-                rest_api_read_only_token=KV_REST_API_READ_ONLY_TOKEN
-            )
-            print("DEBUG: KV inicializado com sucesso (com argumentos)")
-        except Exception as e:
-            print(f"DEBUG: Erro ao inicializar KV com argumentos: {str(e)}")
-            raise
+        print(f"DEBUG: Erro ao inicializar KV: {str(e)}")
+        raise
 
     url = f"https://api.the-odds-api.com/v4/sports/{SPORT}/odds/?apiKey={ODDS_API_KEY}&regions={REGIONS}&markets={MARKETS}&oddsFormat={ODDS_FORMAT}"
     
@@ -135,23 +121,11 @@ def check_odds_variation():
     Busca as odds atuais, compara com os dados do Vercel KV e envia alertas.
     """
     try:
-        # Tentativa de inicialização sem argumentos
-        kv = KV()
-        print("DEBUG: KV inicializado com sucesso (sem argumentos) para check_odds_variation")
+        kv = KV()  # Inicialização sem argumentos
+        print("DEBUG: KV inicializado com sucesso para check_odds_variation")
     except Exception as e:
-        print(f"DEBUG: Falha ao inicializar KV sem argumentos: {str(e)}")
-        try:
-            # Tentativa de inicialização com argumentos explícitos como fallback
-            kv = KV(
-                url=KV_URL,
-                rest_api_url=KV_REST_API_URL,
-                rest_api_token=KV_REST_API_TOKEN,
-                rest_api_read_only_token=KV_REST_API_READ_ONLY_TOKEN
-            )
-            print("DEBUG: KV inicializado com sucesso (com argumentos) para check_odds_variation")
-        except Exception as e:
-            print(f"DEBUG: Erro ao inicializar KV com argumentos: {str(e)}")
-            raise
+        print(f"DEBUG: Erro ao inicializar KV: {str(e)}")
+        raise
 
     game_ids_json = kv.get('daily_games_ids')
     if not game_ids_json:
@@ -187,7 +161,7 @@ def check_odds_variation():
                     c_odds = current_bookmaker['markets'][0]['outcomes']
                     
                     i_home_price = next((o['price'] for o in i_odds if o['name'] == i_game['home_team']), 0)
-                    c_home_price = next((o['price'] for o in c_odds if o['name'] == c_game['home_team']), 0)
+                    c_home_price = next((o['price'] for o in c_ods if o['name'] == c_game['home_team']), 0)
 
                     if c_home_price > i_home_price * 1.10 and c_home_price > 0:
                         message = (
@@ -212,23 +186,11 @@ def fetch_game_results():
     Busca os resultados dos jogos do dia usando os dados salvos.
     """
     try:
-        # Tentativa de inicialização sem argumentos
-        kv = KV()
-        print("DEBUG: KV inicializado com sucesso (sem argumentos) para fetch_game_results")
+        kv = KV()  # Inicialização sem argumentos
+        print("DEBUG: KV inicializado com sucesso para fetch_game_results")
     except Exception as e:
-        print(f"DEBUG: Falha ao inicializar KV sem argumentos: {str(e)}")
-        try:
-            # Tentativa de inicialização com argumentos explícitos como fallback
-            kv = KV(
-                url=KV_URL,
-                rest_api_url=KV_REST_API_URL,
-                rest_api_token=KV_REST_API_TOKEN,
-                rest_api_read_only_token=KV_REST_API_READ_ONLY_TOKEN
-            )
-            print("DEBUG: KV inicializado com sucesso (com argumentos) para fetch_game_results")
-        except Exception as e:
-            print(f"DEBUG: Erro ao inicializar KV com argumentos: {str(e)}")
-            raise
+        print(f"DEBUG: Erro ao inicializar KV: {str(e)}")
+        raise
 
     game_ids_json = kv.get('daily_games_ids')
     if not game_ids_json:
