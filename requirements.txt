@@ -1,4 +1,4 @@
 requests
 python-telegram-bot==20.6
-vercel-kv
+vercel-kv==0.5.0
 Flask
