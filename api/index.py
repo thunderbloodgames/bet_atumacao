@@ -1,7 +1,3 @@
-
-from dotenv import load_dotenv
-load_dotenv()
-
 # --- O resto do seu código começa aqui ---
 from flask import Flask, jsonify
 # ...from flask import Flask, jsonify
