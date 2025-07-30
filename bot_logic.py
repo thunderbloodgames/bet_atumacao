@@ -20,8 +20,8 @@ ODDS_FORMAT = 'decimal'
 SPORT = 'soccer_brazil_campeonato'
 
 # --- INICIALIZAÇÃO DO BOT ---
-# REMOVEMOS a inicialização do KV daqui
 bot = Bot(token=TELEGRAM_TOKEN)
+# REMOVEMOS a inicialização do KV daqui
 
 # --- FUNÇÕES PRINCIPAIS ---
 
@@ -29,7 +29,7 @@ def fetch_daily_games():
     """
     Requisição 1: Busca os jogos do dia, formata a mensagem e salva os dados no Vercel KV.
     """
-    kv = KV() # <-- A inicialização do KV agora é feita AQUI DENTRO
+    kv = KV() # A inicialização do KV agora é feita AQUI DENTRO
     url = f"https://api.the-odds-api.com/v4/sports/{SPORT}/odds/?apiKey={ODDS_API_KEY}&regions={REGIONS}&markets={MARKETS}&oddsFormat={ODDS_FORMAT}"
     
     try:
@@ -78,7 +78,7 @@ def check_odds_variation():
     """
     Requisição 2: Busca as odds atuais, compara com os dados do Vercel KV e envia alertas.
     """
-    kv = KV() # <-- A inicialização do KV agora é feita AQUI DENTRO
+    kv = KV() # A inicialização do KV agora é feita AQUI DENTRO
     game_ids_json = kv.get('daily_games_ids')
     if not game_ids_json:
         print("Nenhum ID de jogo encontrado no Vercel KV.")
