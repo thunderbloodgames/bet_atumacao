@@ -20,14 +20,17 @@ TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID')
 AFFILIATE_LINK = os.environ.get('AFFILIATE_LINK')
 
 # Mapeamento das variáveis de ambiente para o vercel-kv
-KV_URL = os.environ.get('KV_URL') or os.environ.get('url')
+KV_URL = os.environ.get('KV_URL') or os.environ.get('url') or os.environ.get('REDIS_URL')
 KV_REST_API_URL = os.environ.get('KV_REST_API_URL') or os.environ.get('rest_api_url')
 KV_REST_API_TOKEN = os.environ.get('KV_REST_API_TOKEN') or os.environ.get('rest_api_token')
 KV_REST_API_READ_ONLY_TOKEN = os.environ.get('KV_REST_API_READ_ONLY_TOKEN') or os.environ.get('rest_api_read_only_token')
 
-if not all([ODDS_API_KEY, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]) and TELEGRAM_AVAILABLE:
-    raise ValueError("Faltam variáveis de ambiente obrigatórias")
+print(f"DEBUG: KV_URL={KV_URL[:5] if KV_URL else 'None'}, KV_REST_API_TOKEN={KV_REST_API_TOKEN[:5] if KV_REST_API_TOKEN else 'None'}")  # Depuração
 
+if not ODDS_API_KEY:
+    raise ValueError("Falta a variável de ambiente ODDS_API_KEY")
+if TELEGRAM_AVAILABLE and not all([TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]):
+    raise ValueError("Faltam variáveis de ambiente para o Telegram: TELEGRAM_TOKEN ou TELEGRAM_CHAT_ID")
 if not all([KV_URL, KV_REST_API_URL, KV_REST_API_TOKEN]):
     raise ValueError("Faltam variáveis de ambiente para inicialização do Vercel KV")
 
@@ -43,9 +46,10 @@ SPORT = 'soccer_brazil_campeonato'
 
 def send_telegram_message(bot, chat_id, text, parse_mode='Markdown', disable_web_page_preview=True):
     """Função auxiliar para enviar mensagens Telegram com tratamento de erros."""
-    if TELEGRAM_AVAILABLE:
+    if TELEGRAM_AVAILABLE and chat_id:
         try:
             bot.send_message(chat_id=chat_id, text=text, parse_mode=parse_mode, disable_web_page_preview=disable_web_page_preview)
+            print(f"DEBUG: Mensagem Telegram enviada para {chat_id}")
         except TelegramError as e:
             print(f"Erro ao enviar mensagem Telegram: {e}")
 
@@ -53,8 +57,14 @@ def fetch_daily_games():
     """
     Busca os jogos do dia, formata a mensagem e salva os dados no Vercel KV.
     """
-    print(f"DEBUG: KV_URL={KV_URL[:5]}..., ODDS_API_KEY={ODDS_API_KEY[:5]}...")  # Depuração
-    kv = KV(url=KV_URL, rest_api_url=KV_REST_API_URL, rest_api_token=KV_REST_API_TOKEN, rest_api_read_only_token=KV_REST_API_READ_ONLY_TOKEN)
+    print(f"DEBUG: Iniciando fetch_daily_games com KV_URL={KV_URL[:5]}...")  # Depuração
+    try:
+        kv = KV(url=KV_URL, rest_api_url=KV_REST_API_URL, rest_api_token=KV_REST_API_TOKEN, rest_api_read_only_token=KV_REST_API_READ_ONLY_TOKEN)
+        print("DEBUG: KV inicializado com sucesso")
+    except Exception as e:
+        print(f"DEBUG: Erro ao inicializar KV: {str(e)}")
+        raise
+
     url = f"https://api.the-odds-api.com/v4/sports/{SPORT}/odds/?apiKey={ODDS_API_KEY}&regions={REGIONS}&markets={MARKETS}&oddsFormat={ODDS_FORMAT}"
     
     try:
@@ -106,12 +116,19 @@ def fetch_daily_games():
             send_telegram_message(bot, TELEGRAM_CHAT_ID, f"🚨 Erro no Robô: Não foi possível buscar os jogos do dia. Detalhes: {str(e)}")
     except Exception as e:
         print(f"DEBUG: Erro inesperado: {str(e)}")
+        raise
 
 def check_odds_variation():
     """
     Busca as odds atuais, compara com os dados do Vercel KV e envia alertas.
     """
-    kv = KV(url=KV_URL, rest_api_url=KV_REST_API_URL, rest_api_token=KV_REST_API_TOKEN, rest_api_read_only_token=KV_REST_API_READ_ONLY_TOKEN)
+    try:
+        kv = KV(url=KV_URL, rest_api_url=KV_REST_API_URL, rest_api_token=KV_REST_API_TOKEN, rest_api_read_only_token=KV_REST_API_READ_ONLY_TOKEN)
+        print("DEBUG: KV inicializado com sucesso para check_odds_variation")
+    except Exception as e:
+        print(f"DEBUG: Erro ao inicializar KV: {str(e)}")
+        raise
+
     game_ids_json = kv.get('daily_games_ids')
     if not game_ids_json:
         print("Nenhum ID de jogo encontrado no Vercel KV.")
@@ -164,12 +181,19 @@ def check_odds_variation():
             send_telegram_message(bot, TELEGRAM_CHAT_ID, f"🚨 Erro ao verificar variação de odds. Detalhes: {str(e)}")
     except Exception as e:
         print(f"DEBUG: Erro inesperado: {str(e)}")
+        raise
 
 def fetch_game_results():
     """
     Busca os resultados dos jogos do dia usando os dados salvos.
     """
-    kv = KV(url=KV_URL, rest_api_url=KV_REST_API_URL, rest_api_token=KV_REST_API_TOKEN, rest_api_read_only_token=KV_REST_API_READ_ONLY_TOKEN)
+    try:
+        kv = KV(url=KV_URL, rest_api_url=KV_REST_API_URL, rest_api_token=KV_REST_API_TOKEN, rest_api_read_only_token=KV_REST_API_READ_ONLY_TOKEN)
+        print("DEBUG: KV inicializado com sucesso para fetch_game_results")
+    except Exception as e:
+        print(f"DEBUG: Erro ao inicializar KV: {str(e)}")
+        raise
+
     game_ids_json = kv.get('daily_games_ids')
     if not game_ids_json:
         if TELEGRAM_AVAILABLE:
@@ -213,3 +237,4 @@ def fetch_game_results():
             send_telegram_message(bot, TELEGRAM_CHAT_ID, f"🚨 Erro ao buscar resultados. Detalhes: {str(e)}")
     except Exception as e:
         print(f"DEBUG: Erro inesperado: {str(e)}")
+        raise
