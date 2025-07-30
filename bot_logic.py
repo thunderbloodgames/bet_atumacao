@@ -21,7 +21,25 @@ SPORT = 'soccer_brazil_campeonato'
 
 # --- INICIALIZAÇÃO DO BOT E DO BANCO DE DADOS ---
 bot = Bot(token=TELEGRAM_TOKEN)
-kv = KV()  # <-- ALTERAÇÃO 2: Criamos a instância do banco de dados
+# --- INÍCIO DA CORREÇÃO EXPLÍCITA ---
+# Lemos as variáveis de ambiente manualmente
+kv_url = os.environ.get("KV_URL")
+kv_rest_api_url = os.environ.get("KV_REST_API_URL")
+kv_rest_api_token = os.environ.get("KV_REST_API_TOKEN")
+kv_rest_api_read_only_token = os.environ.get("KV_REST_API_READ_ONLY_TOKEN")
+
+# Verificamos se as variáveis foram encontradas antes de tentar usá-las
+if not all([kv_url, kv_rest_api_url, kv_rest_api_token]):
+    raise ValueError("Variáveis de ambiente do Vercel KV não foram encontradas. Verifique as configurações do projeto na Vercel.")
+
+# Entregamos as variáveis diretamente para o construtor do KV
+kv = KV(
+    url=kv_url,
+    rest_api_url=kv_rest_api_url,
+    rest_api_token=kv_rest_api_token,
+    rest_api_read_only_token=kv_rest_api_read_only_token
+)
+# --- FIM DA CORREÇÃO EXPLÍCITA ---
 
 # --- FUNÇÕES PRINCIPAIS ---
 
