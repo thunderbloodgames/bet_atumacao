@@ -1,5 +1,5 @@
-import { kv } from '@vercel/kv'; // <-- CORREÇÃO AQUI: KV mudou para kv minúsculo
-import { postToTelegram } from './telegramService';
+import { kv } from '@vercel/kv';
+import { postToTelegram } from './telegramService.js'; // Correction is here
 
 // --- CONFIGURAÇÃO INICIAL ---
 const ODDS_API_KEY = process.env.ODDS_API_KEY;
