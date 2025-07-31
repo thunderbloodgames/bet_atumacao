@@ -7,81 +7,72 @@ const AFFILIATE_LINK = process.env.AFFILIATE_LINK;
 const PARTNER_BOOKMAKER_KEY = 'betano';
 const PARTNER_BOOKMAKER_NAME = 'Betano';
 const SPORT = 'soccer_brazil_campeonato';
+const REGIONS = 'us'; // <-- CORREÇÃO AQUI: Mudamos de 'br' para 'us'
 
-// --- FUNÇÃO 1: Busca os jogos do dia (versão investigativa) ---
+// --- FUNÇÕES PRINCIPAIS ---
+
+// Função 1: Busca os jogos do dia
 export async function fetchDailyGames() {
-    console.log("1. Iniciando fetch_daily_games");
+    console.log("Iniciando fetch_daily_games");
+    if (!ODDS_API_KEY) throw new Error("Falta a variável de ambiente ODDS_API_KEY");
 
-    if (!ODDS_API_KEY) {
-        console.error("ERRO IMEDIATO: ODDS_API_KEY não encontrada.");
-        throw new Error("Falta a variável de ambiente ODDS_API_KEY");
+    const url = `https://api.the-odds-api.com/v4/sports/${SPORT}/odds/?apiKey=${ODDS_API_KEY}&regions=${REGIONS}&markets=h2h&oddsFormat=decimal`;
+    
+    const response = await fetch(url);
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`ERRO NA RESPOSTA DA API: Status ${response.status}. Detalhes: ${errorText}`);
+        throw new Error(`Erro na API de Odds: ${response.statusText}`);
     }
-    console.log("2. ODDS_API_KEY encontrada.");
+    
+    const games: any[] = await response.json();
+    console.log(`Encontrados ${games.length} jogos.`);
 
-    const url = `https://api.the-odds-api.com/v4/sports/${SPORT}/odds/?apiKey=${ODDS_API_KEY}&regions=br&markets=h2h&oddsFormat=decimal`;
-    console.log(`3. URL montada. Tentando fazer a chamada para a API.`);
-
-    try {
-        const response = await fetch(url);
-        console.log(`4. Chamada fetch concluída. Status da resposta: ${response.status}`);
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`ERRO NA RESPOSTA DA API: A API de Odds retornou um erro. Status: ${response.status}. Detalhes: ${errorText}`);
-            throw new Error(`Erro na API de Odds: ${response.statusText}`);
-        }
-        
-        const games: any[] = await response.json();
-        console.log(`5. Resposta JSON processada. Encontrados ${games.length} jogos.`);
-        
-        // Se a busca funcionou, o resto do código original pode ser executado
-        if (games.length === 0) {
-            await postToTelegram("📊 Nenhum jogo do Brasileirão encontrado para hoje na API.");
-            return;
-        }
-        await kv.del('daily_games_ids');
-        const gameIds = games.map(game => game.id);
-        await kv.set('daily_games_ids', gameIds);
-        for (const game of games) {
-            await kv.set(game.id, game);
-        }
-        console.log("6. Jogos do dia salvos no KV.");
-
-        // Monta e envia a mensagem para o Telegram
-        let messageLines = [`📊 *MERCADO ABERTO | Jogos do Dia (${PARTNER_BOOKMAKER_NAME})*\n`];
-        for (const game of games) {
-            const bookmaker = game.bookmakers.find((b: any) => b.key === PARTNER_BOOKMAKER_KEY);
-            if (bookmaker) {
-                const odds = bookmaker.markets[0].outcomes;
-                const home_odds = odds.find((o: any) => o.name === game.home_team)?.price || 'N/A';
-                const away_odds = odds.find((o: any) => o.name === game.away_team)?.price || 'N/A';
-                const gameTime = new Date(game.commence_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
-                messageLines.push(`⚽ ${gameTime} | ${game.home_team} (${home_odds}) vs ${game.away_team} (${away_odds})`);
-            }
-        }
-        let final_message = messageLines.join('\n');
-        if (AFFILIATE_LINK) {
-            final_message += `\n\n👉 Veja todas as odds e mercados na ${PARTNER_BOOKMAKER_NAME}: ${AFFILIATE_LINK}`;
-        }
-        await postToTelegram(final_message);
-        console.log("7. Mensagem com jogos do dia enviada ao Telegram.");
-
-    } catch (error) {
-        console.error("ERRO CRÍTICO DURANTE A EXECUÇÃO:", error);
-        throw error;
+    if (games.length === 0) {
+        await postToTelegram("📊 Nenhum jogo do Brasileirão encontrado para hoje na API.");
+        return;
     }
+
+    await kv.del('daily_games_ids');
+    const gameIds = games.map(game => game.id);
+    await kv.set('daily_games_ids', gameIds);
+    for (const game of games) {
+        await kv.set(game.id, game);
+    }
+    console.log("Jogos do dia salvos no KV.");
+
+    let messageLines = [`📊 *MERCADO ABERTO | Jogos do Dia (${PARTNER_BOOKMAKER_NAME})*\n`];
+    for (const game of games) {
+        const bookmaker = game.bookmakers.find((b: any) => b.key === PARTNER_BOOKMAKER_KEY);
+        if (bookmaker) {
+            const odds = bookmaker.markets[0].outcomes;
+            const home_odds = odds.find((o: any) => o.name === game.home_team)?.price || 'N/A';
+            const away_odds = odds.find((o: any) => o.name === game.away_team)?.price || 'N/A';
+            const gameTime = new Date(game.commence_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+            messageLines.push(`⚽ ${gameTime} | ${game.home_team} (${home_odds}) vs ${game.away_team} (${away_odds})`);
+        }
+    }
+
+    let final_message = messageLines.join('\n');
+    if (AFFILIATE_LINK) {
+        final_message += `\n\n👉 Veja todas as odds e mercados na ${PARTNER_BOOKMAKER_NAME}: ${AFFILIATE_LINK}`;
+    }
+            
+    await postToTelegram(final_message);
 }
 
-// --- FUNÇÃO 2: Verifica a variação das odds ---
+// Função 2: Verifica a variação das odds
 export async function checkOddsVariation() {
     console.log("Iniciando check_odds_variation");
+    if (!ODDS_API_KEY) throw new Error("Falta a variável de ambiente ODDS_API_KEY");
+
     const gameIds = await kv.get<string[]>('daily_games_ids');
     if (!gameIds || gameIds.length === 0) {
         console.log("Nenhum ID de jogo encontrado para verificar odds.");
         return;
     }
 
-    const url = `https://api.the-odds-api.com/v4/sports/${SPORT}/odds/?apiKey=${ODDS_API_KEY}&regions=br&markets=h2h&oddsFormat=decimal`;
+    const url = `https://api.the-odds-api.com/v4/sports/${SPORT}/odds/?apiKey=${ODDS_API_KEY}&regions=${REGIONS}&markets=h2h&oddsFormat=decimal`;
     const response = await fetch(url);
     if (!response.ok) throw new Error(`Erro na API de Odds: ${response.statusText}`);
     const current_games: any[] = await response.json();
@@ -112,9 +103,11 @@ export async function checkOddsVariation() {
     }
 }
 
-// --- FUNÇÃO 3: Busca os resultados dos jogos ---
+// Função 3: Busca os resultados dos jogos
 export async function fetchGameResults() {
     console.log("Iniciando fetch_game_results");
+    if (!ODDS_API_KEY) throw new Error("Falta a variável de ambiente ODDS_API_KEY");
+    
     const gameIds = await kv.get<string[]>('daily_games_ids');
     if (!gameIds || gameIds.length === 0) {
         await postToTelegram("📋 Nenhum jogo disponível para resultados.");
