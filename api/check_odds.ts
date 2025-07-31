@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server';
-import { checkOddsVariation } from '../services/betsService'; // <--- CORREÇÃO AQUI
+import { checkOddsVariation } from '../services/betsService.js'; // <--- CORREÇÃO AQUI
 
 export const runtime = 'edge';
 export async function GET(request: NextRequest) {
