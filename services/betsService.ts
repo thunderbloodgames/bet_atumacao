@@ -10,7 +10,7 @@ const PARTNER_BOOKMAKER_KEY = 'betonlineag';
 const PARTNER_BOOKMAKER_NAME = 'BetOnline.ag'; // E atualizamos o nome
 
 const SPORT = 'soccer_brazil_campeonato';
-const REGIONS = 'us';
+const REGIONS = 'eu';
 
 // --- FUNÇÕES PRINCIPAIS ---
 
