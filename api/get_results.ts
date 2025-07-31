@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server';
-import { fetchGameResults } from '../services/betsService.js';
+import { fetchGameResults } from '../services/betsService'; // <--- CORREÇÃO AQUI
 
 export const runtime = 'edge';
 export async function GET(request: NextRequest) {
